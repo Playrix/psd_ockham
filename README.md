@@ -1,6 +1,6 @@
 > Entities are not to be multiplied without necessity
 
-_Occam's razor_
+_Ockham's razor_
 
 ----
 
