@@ -118,6 +118,7 @@ psd_status psd_get_layer_and_mask(psd_context * context)
 					case 'pths':
 					case 'FELS':
 					case 'extd':
+					case 'extn':
 						full_size = (psd_int)psd_stream_get_long(context);
 						break;
 					default:
