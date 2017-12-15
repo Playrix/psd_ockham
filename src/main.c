@@ -26,7 +26,7 @@
 
 #include "libpsd_ockham.h"
 
-static const char* const VERSION = "1.08";
+static const char* const VERSION = "1.09";
 
 static const char* const FNAME_POSTFIX = "_cut";
 static const int EXT_LENGTH = 4;
