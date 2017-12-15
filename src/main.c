@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 		size_t input_len = strlen(input);
 		char* dot_pos = strrchr(input, '.');
 
-		size_t output_len = input_len + strlen(FNAME_POSTFIX);
+		size_t output_len = input_len + strlen(FNAME_POSTFIX) + 1;
 		output = (char *)malloc(output_len);
 
 		if (dot_pos != NULL && dot_pos + EXT_LENGTH >= input + input_len)
