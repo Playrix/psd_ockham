@@ -1,2 +1,3 @@
-win/
-mac/
+
+build/
+CMakeFiles/

@@ -1,9 +1,11 @@
-build_path=mac
-source_path=..
+#!/usr/bin/env bash
 
-mkdir -p $build_path
-pushd $build_path
+BUILD_DIR="build/mac"
+WORK_DIR="$PWD"
 
-cmake -G "Xcode" $source_path
+mkdir -p $BUILD_DIR
+pushd $BUILD_DIR
+
+cmake -G "Xcode" $WORK_DIR
 
 popd

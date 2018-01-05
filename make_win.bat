@@ -1,15 +1,17 @@
 @echo off
 
-set build_path=win
-set source_path=..
+set build_path="build/vs2017"
+set source_path="%CD%"
 
-if NOT EXIST "%build_path%" (
-    mkdir "%build_path%"
+if NOT EXIST %build_path% (
+    mkdir %build_path% || goto :do_exit
 )
 
-rem mkdir "%build_path%"
-pushd "%build_path%"
+pushd %build_path%
 
-CALL cmake -G "Visual Studio 14 2015" %source_path%
+CALL m:\bin\cmake\bin\cmake.exe -G "Visual Studio 14 2015" %source_path%  || goto :do_exit
 
 popd
+
+:do_exit
+exit /b %ERRORLEVEL%
