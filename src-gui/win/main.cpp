@@ -10,6 +10,8 @@
 #include <string>
 #include <algorithm>
 
+#include "Richedit.h"
+
 #define MAX_LOADSTRING 255
 #define MAX_FILESTRING 2048
 
@@ -30,14 +32,22 @@ static const int Gap = 3;
 static const int TextMarginV = 3;
 static const int TextMarginH = 5;
 
+enum class LogStatus
+{
+	None,
+	Success,
+	Warning,
+	Error,
+};
+
 // Forward declarations
 ATOM                OckhamRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 
 static void         LayoutElements(int windowWidth, int windowHeight);
-static void         AddToLog(const CHAR* text);
-static void         AddToLogFromId(int strId);
+static void         AddToLog(LogStatus status, const CHAR* text);
+static void         AddToLogFromId(LogStatus status, int strId);
 static void         SetLog(const CHAR* text);
 
 static void         ProcessFiles(const std::vector<std::string>& files);
@@ -123,15 +133,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     LoadString(hInstance, IDS_APP_VERSION, szVersion, MAX_LOADSTRING);
     SendMessage(hVersionLabel, WM_SETTEXT, FALSE, (LPARAM)szVersion);
 
+    LoadLibrary("riched20.dll");
     hLogText = CreateWindowEx(
-        WS_EX_STATICEDGE, "EDIT",
+        WS_EX_STATICEDGE, RICHEDIT_CLASS,
         NULL,
-        WS_CHILD | WS_VISIBLE | ES_MULTILINE | WS_VSCROLL | ES_AUTOVSCROLL | ES_READONLY,
+        WS_CHILD | WS_VISIBLE | ES_MULTILINE | WS_VSCROLL | ES_READONLY,
         0, 0, 0, 0,
         hWnd, (HMENU)ID_LOG_TEXT, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
     SendMessage(hLogText, WM_SETFONT, (WPARAM)defaultFont, NULL);
     SetLog("");
-    AddToLogFromId(IDS_LOG_DEFAULT);
+    AddToLogFromId(LogStatus::None, IDS_LOG_DEFAULT);
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
@@ -264,47 +275,73 @@ static void LayoutElements(int windowWidth, int windowHeight)
 
     RECT rc;
     SendMessage(hLogText, EM_GETRECT, 0, (LPARAM)&rc);
-    rc.left += TextMarginH;
-    rc.top += TextMarginV;
+    rc.left = TextMarginH;
+    rc.top = TextMarginV;
     SendMessage(hLogText, EM_SETRECT, 0, (LPARAM)&rc);
 }
 
+static COLORREF GetTextColor(LogStatus status)
+{
+    switch (status)
+    {
+        case LogStatus::Success:
+            return RGB(0, 128, 0);
+            
+        case LogStatus::Warning:
+            return RGB(255, 128, 0);
+            
+        case LogStatus::Error:
+            return RGB(255, 0, 0);
+            
+        default:
+            return RGB(0, 0, 0);
+    }
+}
 
-static void AddToLog(const CHAR* text)
+static void AddToLog(LogStatus status, const CHAR* text)
 {
     int outLength = GetWindowTextLength(hLogText);
     SendMessage(hLogText, EM_SETSEL, outLength, outLength);
+
+    CHARFORMAT cf = {0};
+    SendMessage(hLogText, EM_GETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
+    cf.cbSize = sizeof(cf);
+    cf.dwMask = CFM_COLOR;
+    cf.crTextColor = GetTextColor(status);
+
+    SendMessage(hLogText, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
     SendMessage(hLogText, EM_REPLACESEL, FALSE, (LPARAM)text);
+    SendMessage(hLogText, WM_VSCROLL, SB_BOTTOM, 0);
 }
 
-static void AddToLogN(const CHAR* text)
+static void AddToLogN(LogStatus status, const CHAR* text)
 {
-    AddToLog(text);
-    AddToLog("\r\n");
+    AddToLog(status, text);
+    AddToLog(status, "\r\n");
 }
 
-static void AddToLogFromId(int strId)
+static void AddToLogFromId(LogStatus status, int strId)
 {
     CHAR text[MAX_LOADSTRING];
     LoadString(hInst, strId, text, MAX_LOADSTRING);
-    AddToLog(text);
+    AddToLog(status, text);
 }
 
 template<typename... Types>
-static void AddToLogFromIdFormatted(int strId, Types ... args)
+static void AddToLogFromIdFormatted(LogStatus status, int strId, Types ... args)
 {
     CHAR pattern[MAX_LOADSTRING];
     LoadString(hInst, strId, pattern, MAX_LOADSTRING);
     CHAR msg[MAX_FILESTRING];
     sprintf_s(msg, MAX_FILESTRING, pattern, args...);
-    AddToLog(msg);
+    AddToLog(status, msg);
 }
 
 template<typename... Types>
-static void AddToLogFromIdFormattedN(int strId, Types ... args)
+static void AddToLogFromIdFormattedN(LogStatus status, int strId, Types ... args)
 {
-    AddToLogFromIdFormatted(strId, args...);
-    AddToLog("\r\n");
+    AddToLogFromIdFormatted(status, strId, args...);
+    AddToLog(status, "\r\n");
 }
 
 static void SetLog(const CHAR* text)
@@ -383,13 +420,13 @@ static void ProcessFiles(const std::vector<std::string>& files)
 
     if (psdFiles.empty())
     {
-        AddToLogFromId(IDS_LOG_NO_FILES);
+        AddToLogFromId(LogStatus::Warning, IDS_LOG_NO_FILES);
         return;
     }
 
     if (psdFiles.size() > 1)
     {
-        AddToLogFromIdFormattedN(IDS_LOG_NUM_FILES, psdFiles.size());
+        AddToLogFromIdFormattedN(LogStatus::None, IDS_LOG_NUM_FILES, psdFiles.size());
     }
 
     bool hasErrors = false;
@@ -398,14 +435,13 @@ static void ProcessFiles(const std::vector<std::string>& files)
     {
         const char* file = psdFiles[i].c_str();
 
-        AddToLogFromIdFormattedN(IDS_LOG_FILE_PROCESSING, i+1, psdFiles.size(), file);
+        AddToLogFromIdFormattedN(LogStatus::None, IDS_LOG_FILE_PROCESSING, i+1, psdFiles.size(), file);
 
         psd_result result = psd_process_file(file, NULL);
-        // Sleep(1000);
         if (result.status != psd_status_done)
         {
             psd_get_error_message(error_message, result.status, result.out_file);
-            AddToLogN(error_message);
+            AddToLogN(LogStatus::Error, error_message);
             hasErrors = true;
         }
         if (result.out_file != NULL)
@@ -414,9 +450,9 @@ static void ProcessFiles(const std::vector<std::string>& files)
     delete [] error_message;
 
     if (hasErrors)
-        AddToLogFromId(IDS_LOG_DONE_ERRORS);
+        AddToLogFromId(LogStatus::Warning, IDS_LOG_DONE_ERRORS);
     else
-        AddToLogFromId(IDS_LOG_DONE);
+        AddToLogFromId(LogStatus::Success, IDS_LOG_DONE);
 }
 
 
