@@ -22,8 +22,6 @@
 #include "stream.h"
 #include "psd_system.h"
 
-extern psd_status psd_image_load_linked_layer(psd_linked_layer * layer, psd_context * parent_context);
-
 psd_status psd_get_linked_layer(psd_context * context)
 {
 	psd_status status = psd_status_done;

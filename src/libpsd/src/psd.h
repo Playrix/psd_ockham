@@ -52,4 +52,6 @@ typedef struct _psd_linked_layer
 	psd_context *				context;
 } psd_linked_layer;
 
+psd_status psd_image_load_linked_layer(psd_linked_layer * layer, psd_context * parent_context);
+
 #endif //ifndef __LIB_PSD_H__

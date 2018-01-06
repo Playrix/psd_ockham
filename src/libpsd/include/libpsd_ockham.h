@@ -55,7 +55,16 @@ typedef enum {
 
 } psd_status;
 
+typedef struct _psd_result
+{
+	psd_status					status;
+	char *						out_file;
+} psd_result;
+
+psd_result psd_process_file(const char * file_name, const char * out_file_name);
 psd_status psd_image_load(const char * file_name, const char * out_file_name);
+
+void psd_get_error_message(char* buffer, psd_status status, const char* out_file_name);
 
 #ifdef __cplusplus
 }

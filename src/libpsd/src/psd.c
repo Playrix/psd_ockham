@@ -19,10 +19,20 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#if defined(_MSC_VER)
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include "psd.h"
 #include "psd_system.h"
 #include "stream.h"
 
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+static const char* const FNAME_POSTFIX = "_cut";
+static const int EXT_LENGTH = 4;
 
 enum {
 	PSD_FILE_HEADER,
@@ -40,6 +50,64 @@ extern psd_status psd_get_layer_and_mask(psd_context * context);
 static psd_status psd_main_loop(psd_context * context);
 static void psd_image_free(psd_context * context);
 
+psd_result psd_process_file(const char * file_name, const char * out_file_name)
+{
+	psd_result result;
+	result.status = psd_status_done;
+	result.out_file = NULL;
+
+	char* tmp_file = tmpnam(0);
+
+	result.status = psd_image_load(file_name, tmp_file);
+
+	if (result.status != psd_status_done)
+	{
+		size_t out_file_name_len = strlen(tmp_file) + 1;
+		result.out_file = (char *)malloc(out_file_name_len);
+		strcpy(result.out_file, tmp_file);
+		return result;
+	}
+
+	if (out_file_name == NULL)
+	{
+		size_t file_name_len = strlen(file_name);
+		char* dot_pos = strrchr(file_name, '.');
+
+		size_t out_file_name_len = file_name_len + strlen(FNAME_POSTFIX) + 1;
+		result.out_file = (char *)malloc(out_file_name_len);
+
+		if (dot_pos != NULL && dot_pos + EXT_LENGTH >= file_name + file_name_len)
+		{
+			size_t dot_index = dot_pos - file_name;
+
+			strncpy(result.out_file, file_name, dot_index);
+			strcpy(result.out_file + dot_index, FNAME_POSTFIX);
+			strcpy(result.out_file + dot_index + strlen(FNAME_POSTFIX), file_name + dot_index);
+		}
+		else
+		{
+			strcpy(result.out_file, file_name);
+			strcpy(result.out_file + file_name_len, FNAME_POSTFIX);
+		}
+	}
+	else
+	{
+		size_t out_file_name_len = strlen(out_file_name) + 1;
+		result.out_file = (char *)malloc(out_file_name_len);
+		strcpy(result.out_file, out_file_name);
+	}
+
+	remove(result.out_file);
+
+	if (rename(tmp_file, result.out_file) != 0)
+	{
+		result.status = psd_status_invalid_out_file;
+	}
+
+	remove(tmp_file);
+	psd_freeif(tmp_file);
+	return result;
+}
 
 psd_status psd_image_load(const psd_char * file_name, const psd_char * out_file_name)
 {
@@ -66,7 +134,7 @@ psd_status psd_image_load(const psd_char * file_name, const psd_char * out_file_
 	if (context->out_file == NULL)
 	{
 		psd_free(context);
-		return psd_status_invalid_out_file;
+		return psd_status_invalid_out_file; // can't open temp file
 	}
 	
 	context->stream = (psd_stream *)psd_malloc(sizeof(psd_stream));
@@ -180,3 +248,66 @@ static psd_status psd_main_loop(psd_context * context)
 	return status;
 }
 
+void psd_get_error_message(char* buffer, psd_status status, const char* out_file_name)
+{
+	if (status == psd_status_done)
+		return;
+
+	if (buffer == NULL)
+		return;
+
+	const char* error_message = "Unknown error";
+	switch (status)
+	{
+		case psd_status_invalid_file:
+			error_message = "Failed to open source file";
+			break;
+		case psd_status_invalid_out_file:
+			error_message = "Failed to open destination file";
+			break;
+
+		case psd_status_malloc_failed:
+			error_message = "Memory allocation failed";
+			break;
+		case psd_status_out_file_error:
+			error_message = "Failed to write destination file";
+			break;
+		case psd_status_fread_error:
+			error_message = "Failed to read from source file";
+			break;
+
+		case psd_status_file_signature_error:
+		case psd_status_file_version_error:
+		case psd_status_file_header_error:
+			error_message = "Broken or unsupported PSD file";
+			break;
+
+		case psd_status_image_resource_error:
+		case psd_status_layer_and_mask_error:
+		case psd_status_resource_signature_error:
+		case psd_status_resource_error:
+		case psd_status_color_mode_data_error:
+		case psd_status_image_data_error:
+		case psd_status_unknown_object_reference:
+		case psd_status_unknown_typed_object:
+		case psd_status_linked_layer_error:
+		case psd_status_layer_info_error:
+		case psd_status_mask_info_error:
+			error_message = "Error parsing PSD";
+
+		default:
+			break;
+	}
+
+	switch (status)
+	{
+		case psd_status_invalid_out_file:
+		case psd_status_out_file_error:
+			sprintf(buffer, "Error %02d: %s \"%s\"", status, error_message, out_file_name);
+			break;
+
+		default:
+			sprintf(buffer, "Error %02d: %s", status, error_message);
+			break;
+	}
+}
