@@ -19,13 +19,13 @@
 #include "resources.h"
 
 #include "libpsd_ockham.h"
+#include "version.h"
 
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <thread>
-
-#include "Richedit.h"
+#include <Richedit.h>
 
 #define MAX_LOADSTRING 255
 #define MAX_FILESTRING 2048
@@ -154,7 +154,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hWnd, (HMENU)ID_VERSION_LABEL, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
 	SendMessage(hVersionLabel, WM_SETFONT, (WPARAM)defaultFont, NULL);
 	LoadString(hInstance, IDS_APP_VERSION, buffer, MAX_LOADSTRING);
-	SendMessage(hVersionLabel, WM_SETTEXT, FALSE, (LPARAM)buffer);
+	std::string version = std::string("v") + PSD_OCKHAM_VERSION + "+" + buffer;
+	SendMessage(hVersionLabel, WM_SETTEXT, FALSE, (LPARAM)version.c_str());
 
 	LoadLibrary("riched20.dll");
 	hLogText = CreateWindowEx(

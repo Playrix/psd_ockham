@@ -51,6 +51,8 @@ if (WIN32)
 		"${_src_root_path}/libpsd/*.h"
 	)
 	make_source_groups(${C_PROJECT_SOURCES} ${_src_root_path})
+	set(C_PROJECT_SOURCES ${C_PROJECT_SOURCES} ${_src_root_path}/version.h)
+	source_group("libpsd" FILES ${_src_root_path}/version.h)
 
 	set(_src_gui_root_path "${CMAKE_CURRENT_SOURCE_DIR}/src-gui/win")
 	file(
@@ -64,6 +66,7 @@ if (WIN32)
 	#Add headers
 	include_directories(
 		"src/libpsd/include"
+		"src"
 	)
 
 	file(GLOB_RECURSE PROJECT_RESOURCES

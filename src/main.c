@@ -20,15 +20,14 @@
 #include <stdlib.h>
 
 #include "libpsd_ockham.h"
-
-static const char* const VERSION = "1.09";
+#include "version.h"
 
 void print_help()
 {
 	puts("Usage: psd_ockham INPUT_FILE [OUTPUT_FILE]");
 	puts("");
 	puts("psd_ockham reduces size of psd files by removing excessive parts of metadata");
-	printf("Version %s\n", VERSION);
+	printf("Version %s\n", PSD_OCKHAM_VERSION);
 }
 
 int main(int argc, char **argv)
