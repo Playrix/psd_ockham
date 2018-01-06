@@ -4,6 +4,8 @@
 #include "stdafx.h"
 #include "resources.h"
 
+#include "libpsd_ockham.h"
+
 #include <vector>
 #include <string>
 
@@ -11,19 +13,19 @@
 #define MAX_FILESTRING 2048
 
 // Global Variables
-HINSTANCE hInst;
-CHAR szTitle[MAX_LOADSTRING];
-CHAR szWindowClass[MAX_LOADSTRING];
-HWND hVersionLabel;
-HWND hLogText;
+static HINSTANCE hInst;
+static CHAR szTitle[MAX_LOADSTRING];
+static CHAR szWindowClass[MAX_LOADSTRING];
+static HWND hVersionLabel;
+static HWND hLogText;
 
 // Layout
-const int border = 7;
-const int labelHeight = 17;
-const int buttonHeight = 30;
-const int gap = 3;
-const int textMarginV = 3;
-const int textMarginH = 5;
+static const int Border = 7;
+static const int LabelHeight = 17;
+static const int ButtonHeight = 30;
+static const int Gap = 3;
+static const int TextMarginV = 3;
+static const int TextMarginH = 5;
 
 // Forward declarations
 ATOM                OckhamRegisterClass(HINSTANCE hInstance);
@@ -199,46 +201,57 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             SetLogText("");
 
+            char * error_message = new char[2048];
             for (auto it: files)
             {
                 AddToLogText(it.c_str());
                 AddToLogText("\r\n");
+                psd_result result = psd_process_file(it.c_str(), NULL);
+                if (result.status != psd_status_done)
+                {
+                    psd_get_error_message(error_message, result.status, result.out_file);
+                    AddToLogText(error_message);
+                    AddToLogText("\r\n");
+                }
+                if (result.out_file != NULL)
+                    delete [] result.out_file;
             }
+            delete [] error_message;
         }
         break;
 
     case WM_SIZE:
         {
-            int y = border;
+            int y = Border;
 
             SIZE sizeText;
             CHAR buf[MAX_LOADSTRING];
             GetWindowText(hVersionLabel, buf, MAX_LOADSTRING);
             HDC hDC = GetDC(NULL);
-            HFONT childFont = (HFONT)SendMessage(hVersionLabel, WM_GETFONT, 0,0);
-            HGDIOBJ oldFont = SelectObject(hDC, childFont);
+            HFONT versionLabelFont = (HFONT)SendMessage(hVersionLabel, WM_GETFONT, 0,0);
+            HGDIOBJ oldFont = SelectObject(hDC, versionLabelFont);
             GetTextExtentPoint32(hDC, buf, lstrlen(buf), &sizeText);
             SelectObject(hDC, oldFont);
 
             MoveWindow(hVersionLabel,
-                        LOWORD(lParam) - border - sizeText.cx, y,
+                        LOWORD(lParam) - Border - sizeText.cx, y,
                         sizeText.cx,
-                        labelHeight,
+                        LabelHeight,
                         TRUE);
 
-            y += labelHeight;
-            y += gap;
+            y += LabelHeight;
+            y += Gap;
 
             MoveWindow(hLogText,
-                        border, y,
-                        LOWORD(lParam) - border*2,
-                        HIWORD(lParam) - y - border,
+                        Border, y,
+                        LOWORD(lParam) - Border*2,
+                        HIWORD(lParam) - y - Border,
                         TRUE);
 
             RECT rc;
             SendMessage(hLogText, EM_GETRECT, 0, (LPARAM)&rc);
-            rc.left += textMarginH;
-            rc.top += textMarginV;
+            rc.left += TextMarginH;
+            rc.top += TextMarginV;
             SendMessage(hLogText, EM_SETRECT, 0, (LPARAM)&rc);
         }
         break;
