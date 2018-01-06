@@ -22,7 +22,7 @@ Running psd_ockham without parameters prints help message and version.
 
 ## Copyright
 
-Copyright © 2017 Playrix.
+Copyright © 2017-2018 Playrix.
 
 psd_ockham is based on [libpsd](https://sourceforge.net/projects/libpsd/)
 
