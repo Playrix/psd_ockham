@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #define MAX_LOADSTRING 255
 #define MAX_FILESTRING 2048
@@ -18,6 +19,8 @@ static CHAR szTitle[MAX_LOADSTRING];
 static CHAR szWindowClass[MAX_LOADSTRING];
 static HWND hVersionLabel;
 static HWND hLogText;
+
+static const std::vector<std::string> PhotoshopExtensions = {"psd", "psb"};
 
 // Layout
 static const int Border = 7;
@@ -31,6 +34,17 @@ static const int TextMarginH = 5;
 ATOM                OckhamRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+
+static void         LayoutElements(int windowWidth, int windowHeight);
+static void         AddToLog(const CHAR* text);
+static void         AddToLogFromId(int strId);
+static void         SetLog(const CHAR* text);
+
+static void         ProcessFiles(const std::vector<std::string>& files);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Initialization
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -116,10 +130,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         0, 0, 0, 0,
         hWnd, (HMENU)ID_LOG_TEXT, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
     SendMessage(hLogText, WM_SETFONT, (WPARAM)defaultFont, NULL);
-    CHAR szDefaultText[MAX_LOADSTRING];
-    LoadString(hInstance, IDS_LOG_DEFAULT_TEXT, szDefaultText, MAX_LOADSTRING);
-    SendMessage(hLogText, WM_SETTEXT, FALSE, (LPARAM)szDefaultText);
-
+    SetLog("");
+    AddToLogFromId(IDS_LOG_DEFAULT);
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
@@ -127,17 +139,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     return TRUE;
 }
 
-static void AddToLogText(const CHAR* text)
-{
-    int outLength = GetWindowTextLength(hLogText);
-    SendMessage(hLogText, EM_SETSEL, outLength, outLength);
-    SendMessage(hLogText, EM_REPLACESEL, FALSE, (LPARAM)text);
-}
-
-static void SetLogText(const CHAR* text)
-{
-    SendMessage(hLogText, WM_SETTEXT, FALSE, (LPARAM)text);
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Main messages routine
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -188,71 +192,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             UINT count = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
             CHAR buf[MAX_FILESTRING];
-            std::vector<std::basic_string<CHAR>> files;
+            std::vector<std::string> files;
             for (UINT i = 0; i < count; ++i)
             {
                 if (DragQueryFile(hDrop, i, (LPSTR)&buf, MAX_FILESTRING) != 0)
                 {
-                    files.push_back(std::basic_string<CHAR>(buf));
+                    files.push_back(std::string(buf));
                 }
             }
 
             DragFinish(hDrop);
 
-            SetLogText("");
-
-            char * error_message = new char[2048];
-            for (auto it: files)
-            {
-                AddToLogText(it.c_str());
-                AddToLogText("\r\n");
-                psd_result result = psd_process_file(it.c_str(), NULL);
-                if (result.status != psd_status_done)
-                {
-                    psd_get_error_message(error_message, result.status, result.out_file);
-                    AddToLogText(error_message);
-                    AddToLogText("\r\n");
-                }
-                if (result.out_file != NULL)
-                    delete [] result.out_file;
-            }
-            delete [] error_message;
+            ProcessFiles(files);
         }
         break;
 
     case WM_SIZE:
         {
-            int y = Border;
-
-            SIZE sizeText;
-            CHAR buf[MAX_LOADSTRING];
-            GetWindowText(hVersionLabel, buf, MAX_LOADSTRING);
-            HDC hDC = GetDC(NULL);
-            HFONT versionLabelFont = (HFONT)SendMessage(hVersionLabel, WM_GETFONT, 0,0);
-            HGDIOBJ oldFont = SelectObject(hDC, versionLabelFont);
-            GetTextExtentPoint32(hDC, buf, lstrlen(buf), &sizeText);
-            SelectObject(hDC, oldFont);
-
-            MoveWindow(hVersionLabel,
-                        LOWORD(lParam) - Border - sizeText.cx, y,
-                        sizeText.cx,
-                        LabelHeight,
-                        TRUE);
-
-            y += LabelHeight;
-            y += Gap;
-
-            MoveWindow(hLogText,
-                        Border, y,
-                        LOWORD(lParam) - Border*2,
-                        HIWORD(lParam) - y - Border,
-                        TRUE);
-
-            RECT rc;
-            SendMessage(hLogText, EM_GETRECT, 0, (LPARAM)&rc);
-            rc.left += TextMarginH;
-            rc.top += TextMarginV;
-            SendMessage(hLogText, EM_SETRECT, 0, (LPARAM)&rc);
+            LayoutElements(LOWORD(lParam), HIWORD(lParam));
         }
         break;
     case WM_CTLCOLORSTATIC:
@@ -270,3 +227,196 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Misc layout functions
+
+static void LayoutElements(int windowWidth, int windowHeight)
+{
+    int y = Border;
+
+    SIZE sizeText;
+    CHAR buf[MAX_LOADSTRING];
+    GetWindowText(hVersionLabel, buf, MAX_LOADSTRING);
+    HDC hDC = GetDC(NULL);
+    HFONT versionLabelFont = (HFONT)SendMessage(hVersionLabel, WM_GETFONT, 0,0);
+    HGDIOBJ oldFont = SelectObject(hDC, versionLabelFont);
+    GetTextExtentPoint32(hDC, buf, lstrlen(buf), &sizeText);
+    SelectObject(hDC, oldFont);
+
+    MoveWindow(hVersionLabel,
+        windowWidth - Border - sizeText.cx, y,
+        sizeText.cx,
+        LabelHeight,
+        TRUE
+    );
+
+    y += LabelHeight;
+    y += Gap;
+
+    MoveWindow(hLogText,
+        Border, y,
+        windowWidth - Border*2,
+        windowHeight - y - Border,
+        TRUE
+    );
+
+    RECT rc;
+    SendMessage(hLogText, EM_GETRECT, 0, (LPARAM)&rc);
+    rc.left += TextMarginH;
+    rc.top += TextMarginV;
+    SendMessage(hLogText, EM_SETRECT, 0, (LPARAM)&rc);
+}
+
+
+static void AddToLog(const CHAR* text)
+{
+    int outLength = GetWindowTextLength(hLogText);
+    SendMessage(hLogText, EM_SETSEL, outLength, outLength);
+    SendMessage(hLogText, EM_REPLACESEL, FALSE, (LPARAM)text);
+}
+
+static void AddToLogN(const CHAR* text)
+{
+    AddToLog(text);
+    AddToLog("\r\n");
+}
+
+static void AddToLogFromId(int strId)
+{
+    CHAR text[MAX_LOADSTRING];
+    LoadString(hInst, strId, text, MAX_LOADSTRING);
+    AddToLog(text);
+}
+
+template<typename... Types>
+static void AddToLogFromIdFormatted(int strId, Types ... args)
+{
+    CHAR pattern[MAX_LOADSTRING];
+    LoadString(hInst, strId, pattern, MAX_LOADSTRING);
+    CHAR msg[MAX_FILESTRING];
+    sprintf_s(msg, MAX_FILESTRING, pattern, args...);
+    AddToLog(msg);
+}
+
+template<typename... Types>
+static void AddToLogFromIdFormattedN(int strId, Types ... args)
+{
+    AddToLogFromIdFormatted(strId, args...);
+    AddToLog("\r\n");
+}
+
+static void SetLog(const CHAR* text)
+{
+    SendMessage(hLogText, WM_SETTEXT, FALSE, (LPARAM)text);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Processing psd files logic
+
+static std::vector<std::string> ListDirectory(const std::string& dir)
+{
+    std::vector<std::string> result;
+    std::string search_path = dir + "\\*.*";
+    WIN32_FIND_DATA fd;
+    HANDLE hFind = ::FindFirstFile(search_path.c_str(), &fd);
+    if (hFind != INVALID_HANDLE_VALUE)
+    {
+        std::string fileName;
+        do
+        {
+            fileName = fd.cFileName;
+            if (fileName != "." && fileName != "..")
+            {
+                result.push_back(dir + "\\" + fileName);
+            }
+        } while(::FindNextFile(hFind, &fd));
+
+        ::FindClose(hFind);
+    }
+
+    return result;
+}
+
+static char ToLower(char in)
+{
+    if (in <='Z' && in >= 'A')
+        return in-('Z'-'z');
+    return in;
+}
+
+static void FilterFiles(const std::vector<std::string>& files, std::vector<std::string>& result)
+{
+    for (auto it: files)
+    {
+        DWORD attr = GetFileAttributes(it.c_str());
+        if (attr & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            FilterFiles(ListDirectory(it), result);
+        }
+        else
+        {
+            size_t ext_pos = it.find_last_of(".");
+            if (ext_pos != std::string::npos)
+            {
+                std::string ext = it.substr(ext_pos + 1);
+                std::transform(ext.begin(), ext.end(), ext.begin(), ToLower);
+                if (std::find(PhotoshopExtensions.begin(), PhotoshopExtensions.end(), ext) != PhotoshopExtensions.end())
+                {
+                    result.push_back(it);
+                }
+            }
+        }
+    }
+}
+
+static void ProcessFiles(const std::vector<std::string>& files)
+{
+    std::vector<std::string> psdFiles;
+
+    FilterFiles(files, psdFiles);
+
+    SetLog("");
+
+    if (psdFiles.empty())
+    {
+        AddToLogFromId(IDS_LOG_NO_FILES);
+        return;
+    }
+
+    if (psdFiles.size() > 1)
+    {
+        AddToLogFromIdFormattedN(IDS_LOG_NUM_FILES, psdFiles.size());
+    }
+
+    bool hasErrors = false;
+    char * error_message = new char[2048];
+    for (size_t i = 0; i < psdFiles.size(); ++i)
+    {
+        const char* file = psdFiles[i].c_str();
+
+        AddToLogFromIdFormattedN(IDS_LOG_FILE_PROCESSING, i+1, psdFiles.size(), file);
+
+        psd_result result = psd_process_file(file, NULL);
+        // Sleep(1000);
+        if (result.status != psd_status_done)
+        {
+            psd_get_error_message(error_message, result.status, result.out_file);
+            AddToLogN(error_message);
+            hasErrors = true;
+        }
+        if (result.out_file != NULL)
+            delete [] result.out_file;
+    }
+    delete [] error_message;
+
+    if (hasErrors)
+        AddToLogFromId(IDS_LOG_DONE_ERRORS);
+    else
+        AddToLogFromId(IDS_LOG_DONE);
+}
+
+

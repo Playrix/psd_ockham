@@ -105,7 +105,6 @@ psd_result psd_process_file(const char * file_name, const char * out_file_name)
 	}
 
 	remove(tmp_file);
-	psd_freeif(tmp_file);
 	return result;
 }
 
