@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <thread>
 
 #include "Richedit.h"
 
@@ -16,17 +17,22 @@
 #define MAX_FILESTRING 2048
 
 // Global Variables
-static HINSTANCE hInst;
-static CHAR szTitle[MAX_LOADSTRING];
-static CHAR szWindowClass[MAX_LOADSTRING];
-static HWND hVersionLabel;
-static HWND hLogText;
+HINSTANCE hInst;
+CHAR szTitle[MAX_LOADSTRING];
+CHAR szWindowClass[MAX_LOADSTRING];
+HWND hWnd;
+HWND hVersionLabel;
+HWND hLogText;
+HWND hCancelButton;
+
+std::thread processingThread;
 
 static const std::vector<std::string> PhotoshopExtensions = {"psd", "psb"};
 
 // Layout
 static const int Border = 7;
 static const int LabelHeight = 17;
+static const int ButtonWidth = 138;
 static const int ButtonHeight = 30;
 static const int Gap = 3;
 static const int TextMarginV = 3;
@@ -34,11 +40,12 @@ static const int TextMarginH = 5;
 
 enum class LogStatus
 {
-	None,
-	Success,
-	Warning,
-	Error,
+    None,
+    Success,
+    Warning,
+    Error,
 };
+
 
 // Forward declarations
 ATOM                OckhamRegisterClass(HINSTANCE hInstance);
@@ -51,6 +58,7 @@ static void         AddToLogFromId(LogStatus status, int strId);
 static void         SetLog(const CHAR* text);
 
 static void         ProcessFiles(const std::vector<std::string>& files);
+static void         StopProcessing();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -109,7 +117,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     hInst = hInstance;
 
-    HWND hWnd = CreateWindow(szWindowClass, szTitle,
+    hWnd = CreateWindow(szWindowClass, szTitle,
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_THICKFRAME,
         CW_USEDEFAULT, 0, 400, 300, nullptr, nullptr, hInstance, nullptr);
 
@@ -120,6 +128,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     DragAcceptFiles(hWnd, TRUE);
 
+    CHAR buffer[MAX_LOADSTRING];
+
     HFONT defaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 
     hVersionLabel = CreateWindowEx(
@@ -129,9 +139,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         0, 0, 0, 0,
         hWnd, (HMENU)ID_VERSION_LABEL, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
     SendMessage(hVersionLabel, WM_SETFONT, (WPARAM)defaultFont, NULL);
-    CHAR szVersion[MAX_LOADSTRING];
-    LoadString(hInstance, IDS_APP_VERSION, szVersion, MAX_LOADSTRING);
-    SendMessage(hVersionLabel, WM_SETTEXT, FALSE, (LPARAM)szVersion);
+    LoadString(hInstance, IDS_APP_VERSION, buffer, MAX_LOADSTRING);
+    SendMessage(hVersionLabel, WM_SETTEXT, FALSE, (LPARAM)buffer);
 
     LoadLibrary("riched20.dll");
     hLogText = CreateWindowEx(
@@ -143,6 +152,17 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     SendMessage(hLogText, WM_SETFONT, (WPARAM)defaultFont, NULL);
     SetLog("");
     AddToLogFromId(LogStatus::None, IDS_LOG_DEFAULT);
+
+    hCancelButton = CreateWindowEx(
+        0, "BUTTON",
+        NULL,
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+        0, 0, 0, 0,
+        hWnd, (HMENU)ID_CANCEL_BUTTON, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+    SendMessage(hCancelButton, WM_SETFONT, (WPARAM)defaultFont, NULL);
+    EnableWindow(hCancelButton, FALSE);
+    LoadString(hInstance, IDS_CANCEL, buffer, MAX_LOADSTRING);
+    SendMessage(hCancelButton, WM_SETTEXT, FALSE, (LPARAM)buffer);
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
@@ -158,20 +178,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-    // case WM_COMMAND:
-    //     {
-    //         int wmId = LOWORD(wParam);
-    //         // Parse the menu selections:
-    //         switch (wmId)
-    //         {
-    //         case IDM_ABOUT:
-    //             DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-    //             break;
-    //         default:
-    //             return DefWindowProc(hWnd, message, wParam, lParam);
-    //         }
-    //     }
-    //     break;
+    case WM_COMMAND:
+        {
+            int wmId = LOWORD(wParam);
+            switch (wmId)
+            {
+            case ID_CANCEL_BUTTON:
+                StopProcessing();
+                AddToLogFromId(LogStatus::Warning, IDS_LOG_CANCEL);
+                DragAcceptFiles(hWnd, TRUE);
+                EnableWindow(hCancelButton, FALSE);
+                break;
+            default:
+                return DefWindowProc(hWnd, message, wParam, lParam);
+            }
+        }
+        break;
 
     case WM_PAINT:
         {
@@ -187,13 +209,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_GETMINMAXINFO:
         {
             LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
-            lpMMI->ptMinTrackSize.x = 150;
-            lpMMI->ptMinTrackSize.y = 100;
+            lpMMI->ptMinTrackSize.x = 160;
+            lpMMI->ptMinTrackSize.y = 160;
         }
         break;
 
     
     case WM_DESTROY:
+        StopProcessing();
         PostQuitMessage(0);
         break;
 
@@ -214,7 +237,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             DragFinish(hDrop);
 
-            ProcessFiles(files);
+            if (processingThread.joinable())
+                processingThread.join();
+            processingThread = std::thread(ProcessFiles, files);
         }
         break;
 
@@ -266,10 +291,12 @@ static void LayoutElements(int windowWidth, int windowHeight)
     y += LabelHeight;
     y += Gap;
 
+    const int logHeight = windowHeight - y - Border - Gap - ButtonHeight;
+
     MoveWindow(hLogText,
         Border, y,
         windowWidth - Border*2,
-        windowHeight - y - Border,
+        logHeight,
         TRUE
     );
 
@@ -278,6 +305,15 @@ static void LayoutElements(int windowWidth, int windowHeight)
     rc.left = TextMarginH;
     rc.top = TextMarginV;
     SendMessage(hLogText, EM_SETRECT, 0, (LPARAM)&rc);
+
+    y += logHeight + Gap;
+
+    MoveWindow(hCancelButton,
+        windowWidth - Border - ButtonWidth, y,
+        ButtonWidth,
+        ButtonHeight,
+        TRUE
+    );
 }
 
 static COLORREF GetTextColor(LogStatus status)
@@ -354,6 +390,15 @@ static void SetLog(const CHAR* text)
 //
 // Processing psd files logic
 
+static void StopProcessing()
+{
+    if (processingThread.joinable())
+    {
+        ::TerminateThread(processingThread.native_handle(), 1);
+        processingThread.join();
+    }
+}
+
 static std::vector<std::string> ListDirectory(const std::string& dir)
 {
     std::vector<std::string> result;
@@ -424,6 +469,9 @@ static void ProcessFiles(const std::vector<std::string>& files)
         return;
     }
 
+    DragAcceptFiles(hWnd, FALSE);
+    EnableWindow(hCancelButton, TRUE);
+
     if (psdFiles.size() > 1)
     {
         AddToLogFromIdFormattedN(LogStatus::None, IDS_LOG_NUM_FILES, psdFiles.size());
@@ -453,6 +501,9 @@ static void ProcessFiles(const std::vector<std::string>& files)
         AddToLogFromId(LogStatus::Warning, IDS_LOG_DONE_ERRORS);
     else
         AddToLogFromId(LogStatus::Success, IDS_LOG_DONE);
+
+    DragAcceptFiles(hWnd, TRUE);
+    EnableWindow(hCancelButton, FALSE);
 }
 
 
