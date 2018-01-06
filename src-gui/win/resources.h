@@ -1,20 +1,17 @@
-//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ generated include file.
-// Used by psd_ockham_gui.rc
-//
 
-#define IDS_APP_TITLE			103
-#define IDS_APP_VERSION			104
-#define IDS_LOG_DEFAULT_TEXT	105
 
-#define IDR_MAINFRAME			128
-#define ID_VERSION_LABEL		110
-#define ID_LOG_TEXT				111
+#define IDS_APP_TITLE           100
+#define IDS_APP_VERSION         101
+#define IDS_LOG_DEFAULT_TEXT    102
 
-#define IDI_PSD_OCKHAM_GUI		120
-#define IDC_PSD_OCKHAM_GUI		121
+#define IDI_ICON                120
+#define IDC_WINDOW_CLASS        121
 
-#define IDC_MYICON				2
+#define IDR_MAINFRAME           130
+#define ID_VERSION_LABEL        131
+#define ID_LOG_TEXT             132
+
+
 #ifndef IDC_STATIC
-#define IDC_STATIC				-1
+#define IDC_STATIC              -1
 #endif
