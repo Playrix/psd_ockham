@@ -35,7 +35,6 @@ HINSTANCE hInst;
 CHAR szTitle[MAX_LOADSTRING];
 CHAR szWindowClass[MAX_LOADSTRING];
 HWND hWnd;
-HWND hVersionLabel;
 HWND hLogText;
 HWND hCancelButton;
 
@@ -69,9 +68,11 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 
 static void         LayoutElements(int windowWidth, int windowHeight);
 static void         AddToLog(LogStatus status, const CHAR* text);
+static void         AddToLogN(LogStatus status, const CHAR* text);
 static void         AddToLogFromId(LogStatus status, int strId);
 static void         AddToLogFromIdN(LogStatus status, int strId);
 static void         SetLog(const CHAR* text);
+static void         SetLogDefault();
 
 static void         ProcessFiles(const std::vector<std::string>& files);
 static void         StopProcessing();
@@ -148,17 +149,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	HFONT defaultFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 
-	hVersionLabel = CreateWindowEx(
-		0, "EDIT",
-		NULL,
-		WS_CHILD | WS_VISIBLE | ES_READONLY,
-		0, 0, 0, 0,
-		hWnd, (HMENU)ID_VERSION_LABEL, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
-	SendMessage(hVersionLabel, WM_SETFONT, (WPARAM)defaultFont, NULL);
-	LoadString(hInstance, IDS_APP_VERSION, buffer, MAX_LOADSTRING);
-	std::string version = std::string("v") + PSD_OCKHAM_VERSION + "+" + buffer;
-	SendMessage(hVersionLabel, WM_SETTEXT, FALSE, (LPARAM)version.c_str());
-
 	LoadLibrary("riched20.dll");
 	hLogText = CreateWindowEx(
 		WS_EX_STATICEDGE, RICHEDIT_CLASS,
@@ -167,7 +157,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		0, 0, 0, 0,
 		hWnd, (HMENU)ID_LOG_TEXT, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
 	SendMessage(hLogText, WM_SETFONT, (WPARAM)defaultFont, NULL);
-	SetLog("");
+	SetLogDefault();
 	AddToLogFromId(LogStatus::None, IDS_LOG_DEFAULT);
 
 	hCancelButton = CreateWindowEx(
@@ -290,25 +280,6 @@ static void LayoutElements(int windowWidth, int windowHeight)
 {
 	int y = Border;
 
-	SIZE sizeText;
-	CHAR buf[MAX_LOADSTRING];
-	GetWindowText(hVersionLabel, buf, MAX_LOADSTRING);
-	HDC hDC = GetDC(NULL);
-	HFONT versionLabelFont = (HFONT)SendMessage(hVersionLabel, WM_GETFONT, 0,0);
-	HGDIOBJ oldFont = SelectObject(hDC, versionLabelFont);
-	GetTextExtentPoint32(hDC, buf, lstrlen(buf), &sizeText);
-	SelectObject(hDC, oldFont);
-
-	MoveWindow(hVersionLabel,
-		windowWidth - Border - sizeText.cx, y,
-		sizeText.cx,
-		LabelHeight,
-		TRUE
-	);
-
-	y += LabelHeight;
-	y += Gap;
-
 	const int logHeight = windowHeight - y - Border - Gap - ButtonHeight;
 
 	MoveWindow(hLogText,
@@ -409,6 +380,16 @@ static void SetLog(const CHAR* text)
 	SendMessage(hLogText, WM_SETTEXT, FALSE, (LPARAM)text);
 }
 
+static void SetLogDefault()
+{
+	CHAR buffer[MAX_LOADSTRING];
+	LoadString(hInst, IDS_APP_VERSION, buffer, MAX_LOADSTRING);
+	std::string version = std::string("v") + PSD_OCKHAM_VERSION + "+" + buffer;
+	SetLog("");
+	AddToLog(LogStatus::None, version.c_str());
+	AddToLog(LogStatus::None, "\r\n\r\n");
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -487,7 +468,7 @@ static void ProcessFiles(const std::vector<std::string>& files)
 
 	FilterFiles(files, psdFiles);
 
-	SetLog("");
+	SetLogDefault();
 
 	if (psdFiles.empty())
 	{
