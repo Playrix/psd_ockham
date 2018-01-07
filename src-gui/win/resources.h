@@ -26,6 +26,7 @@
 #define IDS_LOG_DONE_ERRORS     107
 #define IDS_CANCEL              108
 #define IDS_LOG_CANCEL          109
+#define IDS_LOG_WAIT_TO_CANCEL  110
 
 #define IDI_ICON                120
 #define IDC_WINDOW_CLASS        121

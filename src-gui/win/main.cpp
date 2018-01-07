@@ -40,6 +40,7 @@ HWND hLogText;
 HWND hCancelButton;
 
 std::thread processingThread;
+bool requestProcessingCancel = false;
 
 static const std::vector<std::string> PhotoshopExtensions = {"psd", "psb"};
 
@@ -69,6 +70,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 static void         LayoutElements(int windowWidth, int windowHeight);
 static void         AddToLog(LogStatus status, const CHAR* text);
 static void         AddToLogFromId(LogStatus status, int strId);
+static void         AddToLogFromIdN(LogStatus status, int strId);
 static void         SetLog(const CHAR* text);
 
 static void         ProcessFiles(const std::vector<std::string>& files);
@@ -199,10 +201,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			switch (wmId)
 			{
 			case ID_CANCEL_BUTTON:
-				StopProcessing();
-				AddToLogFromId(LogStatus::Warning, IDS_LOG_CANCEL);
-				DragAcceptFiles(hWnd, TRUE);
-				EnableWindow(hCancelButton, FALSE);
+				if (!requestProcessingCancel)
+				{
+					requestProcessingCancel = true;
+					AddToLogFromIdN(LogStatus::None, IDS_LOG_WAIT_TO_CANCEL);
+				}
 				break;
 			default:
 				return DefWindowProc(hWnd, message, wParam, lParam);
@@ -378,6 +381,12 @@ static void AddToLogFromId(LogStatus status, int strId)
 	AddToLog(status, text);
 }
 
+static void AddToLogFromIdN(LogStatus status, int strId)
+{
+	AddToLogFromId(status, strId);
+	AddToLog(status, "\r\n");
+}
+
 template<typename... Types>
 static void AddToLogFromIdFormatted(LogStatus status, int strId, Types ... args)
 {
@@ -472,6 +481,8 @@ static void FilterFiles(const std::vector<std::string>& files, std::vector<std::
 
 static void ProcessFiles(const std::vector<std::string>& files)
 {
+	requestProcessingCancel = false;
+
 	std::vector<std::string> psdFiles;
 
 	FilterFiles(files, psdFiles);
@@ -494,7 +505,8 @@ static void ProcessFiles(const std::vector<std::string>& files)
 
 	bool hasErrors = false;
 	char * error_message = new char[2048];
-	for (size_t i = 0; i < psdFiles.size(); ++i)
+	size_t i = 0;
+	for (i = 0; i < psdFiles.size(); ++i)
 	{
 		const char* file = psdFiles[i].c_str();
 
@@ -509,13 +521,23 @@ static void ProcessFiles(const std::vector<std::string>& files)
 		}
 		if (result.out_file != NULL)
 			delete [] result.out_file;
+
+		if (requestProcessingCancel)
+			break;
 	}
 	delete [] error_message;
 
-	if (hasErrors)
-		AddToLogFromId(LogStatus::Warning, IDS_LOG_DONE_ERRORS);
+	if (!requestProcessingCancel || i+1 >= psdFiles.size())
+	{
+		if (hasErrors)
+			AddToLogFromId(LogStatus::Warning, IDS_LOG_DONE_ERRORS);
+		else
+			AddToLogFromId(LogStatus::Success, IDS_LOG_DONE);
+	}
 	else
-		AddToLogFromId(LogStatus::Success, IDS_LOG_DONE);
+	{
+		AddToLogFromId(LogStatus::Warning, IDS_LOG_CANCEL);
+	}
 
 	DragAcceptFiles(hWnd, TRUE);
 	EnableWindow(hCancelButton, FALSE);
