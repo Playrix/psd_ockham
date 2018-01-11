@@ -4,6 +4,8 @@ _Ockham's razor_
 
 ----
 
+![Icon](src-gui/mac/res/Images.xcassets/AppIcon.appiconset/ico_128.png)
+
 **psd_ockham** is a command-line utility that reduces Photoshop .psd and .psb file size by removing parts of excessive XMP metadata.
 
 Latter versions of Photoshop have issue when XMP gets bloated with useless identifiers in the `<photoshop:DocumentAncestors>` element (https://forums.adobe.com/thread/1983397). Sometimes the size of blotated metadata exceeds the size of the rest file multiple times.
@@ -19,6 +21,10 @@ psd_ockham SOURCE_FILE [DESTINATION_FILE]
 Results will be written to destination file. If there's no destination file provided, results will be written to new file near source file with suffix `_cut`.
 
 Running psd_ockham without parameters prints help message and version.
+
+## GUI
+
+psd_ockam also has version with graphical user interface (only for Windows). GUI version is simple and straightforward, works through drag-n-dropping files and folders onto main window. GUI version is independent and doesn't require command-line executable.
 
 ## Copyright
 
