@@ -29,7 +29,8 @@
 #define IDS_LOG_WAIT_TO_CANCEL  110
 
 #define IDI_ICON                120
-#define IDC_WINDOW_CLASS        121
+#define IDI_ICON_SMALL          121
+#define IDC_WINDOW_CLASS        122
 
 #define IDR_MAINFRAME           130
 #define ID_LOG_TEXT             132

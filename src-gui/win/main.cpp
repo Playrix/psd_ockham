@@ -125,7 +125,7 @@ ATOM OckhamRegisterClass(HINSTANCE hInstance)
 	wcex.hbrBackground  = (HBRUSH)GetSysColorBrush(COLOR_BTNFACE);
 	wcex.lpszMenuName   = 0;
 	wcex.lpszClassName  = szWindowClass;
-	wcex.hIconSm        = wcex.hIcon;
+	wcex.hIconSm        = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_SMALL));
 
 	return RegisterClassEx(&wcex);
 }
