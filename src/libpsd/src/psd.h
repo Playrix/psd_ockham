@@ -30,8 +30,8 @@ typedef struct _psd_stream
 	psd_uchar *					buffer;
 	psd_int						read_in_length;
 	psd_int						read_out_length;
-	psd_int						file_end;
-	psd_int						current_pos;
+	psd_long					file_end;
+	psd_long					current_pos;
 	psd_bool					autowrite;
 } psd_stream;
 
@@ -39,16 +39,16 @@ typedef struct _psd_context
 {
 	psd_char *					file_name;
 	psd_char *					out_file_name;
-	void *						file;
-	void *						out_file;
+	psd_int						file;
+	psd_int						out_file;
 	psd_stream *				stream;
 	psd_short					version;
 } psd_context;
 
 typedef struct _psd_linked_layer
 {
-	psd_int						file_begin;
-	psd_int						data_length;
+	psd_long					file_begin;
+	psd_long					data_length;
 	psd_context *				context;
 } psd_linked_layer;
 

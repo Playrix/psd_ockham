@@ -42,12 +42,13 @@ void writeToTempFile(psd_char * data, size_t sizeofdata, psd_char* out_file_name
 		strcpy(xml_filename, out_file_name);
 		strcpy(xml_filename + strlen(out_file_name), suffix);
 		xml_filename[strlen(out_file_name) + s_len] = 0;
-		FILE *d = fopen(xml_filename, "w");
-		if (d != NULL)
+		int f = psd_fopenw(xml_filename);
+		if (f >= 0)
 		{
-			psd_fwrite((psd_uchar*)data, sizeofdata, d);
+			psd_fwrite((psd_uchar*)data, sizeofdata, f);
 		}
 		psd_free(xml_filename);
+		psd_fclose(f);
 	}
 }
 
@@ -149,12 +150,12 @@ psd_char * makeCutMetadata(psd_char * metadata, size_t sizeofdata)
 psd_status psd_get_image_resource(psd_context * context)
 {
 	psd_status status = psd_status_done;
-	psd_int length, full_length, remain_length;
-	long length_pos, sizeofdata_pos;
+	psd_int length, full_length;
+	psd_long length_pos, sizeofdata_pos, prev_stream_pos, remain_length;
 	psd_ushort ID;
 	psd_uint tag;
 	psd_uchar sizeofname;
-	psd_int sizeofdata, prev_stream_pos;
+	psd_int sizeofdata;
 
 	length_pos = psd_ftell(context->out_file);
 	// Length of image resource section
@@ -179,7 +180,7 @@ psd_status psd_get_image_resource(psd_context * context)
 			psd_stream_get_null(context, sizeofname);
 			length -= sizeofname + 1;
 			
-			sizeofdata_pos = psd_ftell(context->out_file);;
+			sizeofdata_pos = psd_ftell(context->out_file);
 			// Actual size of resource data that follows
 			sizeofdata = psd_stream_get_int(context);
 			length -= 4;

@@ -28,16 +28,16 @@ psd_status psd_get_linked_layer(psd_context * context)
 
 	psd_long block_length_pos = psd_ftell(context->out_file);
 
-	psd_int block_length = (psd_int)psd_stream_get_long(context);
+	psd_long block_length = psd_stream_get_long(context);
 	if (block_length % 4 != 0)
 		block_length += 4 - block_length % 4;
-	psd_int prev_stream_pos = context->stream->current_pos;
+	psd_long prev_stream_pos = context->stream->current_pos;
 
 	if (psd_stream_get_int(context) == 'liFD')
 	{
 		psd_stream_get_int(context);
 
-		psd_int str_length = (psd_int)psd_stream_get_char(context);
+		psd_int str_length = psd_stream_get_char(context);
 		if (psd_stream_get_null(context, str_length) != str_length)
 			return psd_status_linked_layer_error;
 
@@ -48,7 +48,7 @@ psd_status psd_get_linked_layer(psd_context * context)
 		psd_linked_layer linked_layer;
 
 		psd_long data_length_pos = psd_ftell(context->out_file);
-		linked_layer.data_length = (psd_int)psd_stream_get_long(context);
+		linked_layer.data_length = psd_stream_get_long(context);
 
 		psd_uchar has_descriptor = psd_stream_get_bool(context);
 
@@ -84,7 +84,7 @@ psd_status psd_get_linked_layer(psd_context * context)
 		}
 	}
 
-	psd_int length = prev_stream_pos + block_length - context->stream->current_pos;
+	psd_long length = prev_stream_pos + block_length - context->stream->current_pos;
 	if (psd_stream_get_null(context, length) != length)
 		return psd_status_linked_layer_error;
 

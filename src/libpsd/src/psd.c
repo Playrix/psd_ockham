@@ -123,14 +123,14 @@ psd_status psd_image_load(const psd_char * file_name, const psd_char * out_file_
 
 	context->file_name = (psd_char *)file_name;
 	context->file = psd_fopen(file_name);
-	if (context->file == NULL)
+	if (context->file < 0)
 	{
 		psd_free(context);
 		return psd_status_invalid_file;
 	}
 	context->out_file_name = (psd_char *)out_file_name;
 	context->out_file = psd_fopenw(out_file_name);
-	if (context->out_file == NULL)
+	if (context->out_file < 0)
 	{
 		psd_free(context);
 		return psd_status_invalid_out_file; // can't open temp file
@@ -161,7 +161,7 @@ psd_status psd_image_load_linked_layer(psd_linked_layer * layer, psd_context * p
 	
 	context.stream = parent_context->stream;
 
-	psd_int old_file_end = parent_context->stream->file_end;
+	psd_long old_file_end = parent_context->stream->file_end;
 	context.stream->file_end = layer->file_begin + layer->data_length;
 	
 	status = psd_main_loop(&context);
@@ -181,7 +181,7 @@ static psd_status psd_main_loop(psd_context * context)
 {
 	psd_status status = psd_status_done;
 	psd_uint state = PSD_FILE_HEADER;
-	psd_int length;
+	psd_long length;
 
 	while(status == psd_status_done)
 	{

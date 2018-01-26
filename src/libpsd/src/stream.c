@@ -23,6 +23,8 @@
 #include "psd_system.h"
 #include "stream.h"
 
+#include <string.h>
+
 static
 #ifdef __GNUC__
 __inline
@@ -116,15 +118,16 @@ psd_int psd_stream_get(psd_context * context, psd_uchar * buffer, psd_int length
 
 psd_int psd_stream_get_w_null(psd_context * context, psd_int length)
 {
-	psd_int k = sizeof(psd_wchar) / sizeof(psd_uchar);
-	psd_int count = psd_stream_get_null(context, k * length);
-	return count;
+	psd_long k = sizeof(psd_wchar) / sizeof(psd_uchar);
+	psd_long count = psd_stream_get_null(context, k * length);
+	return (psd_int)count;
 }
 
-psd_int psd_stream_get_null(psd_context * context, psd_int length)
+psd_long psd_stream_get_null(psd_context * context, psd_long length)
 {
 	psd_stream * stream;
-	psd_int left, read = 0;
+	psd_int left;
+	psd_long read = 0;
 
 	if(length <= 0)
 		return 0;
@@ -138,7 +141,7 @@ psd_int psd_stream_get_null(psd_context * context, psd_int length)
 			return 0;
 	}
 
-	left = stream->read_in_length - stream->read_out_length;
+	left = (psd_int)(stream->read_in_length - stream->read_out_length);
 	if(left > 0 && left <= length)
 	{
 		if (stream->autowrite)
@@ -150,7 +153,7 @@ psd_int psd_stream_get_null(psd_context * context, psd_int length)
 
 	if(length > PSD_STREAM_MAX_READ_LENGTH)
 	{
-		psd_int cur_length = length;
+		psd_long cur_length = length;
 		while (cur_length >= PSD_STREAM_MAX_READ_LENGTH)
 		{
 			stream->read_in_length = psd_fread(stream->buffer, PSD_STREAM_MAX_READ_LENGTH, context->file);
@@ -171,19 +174,19 @@ psd_int psd_stream_get_null(psd_context * context, psd_int length)
 			if(length > stream->read_in_length)
 				length = stream->read_in_length;
 			if (stream->autowrite)
-				psd_fwrite(stream->buffer, length, context->out_file);
+				psd_fwrite(stream->buffer, (psd_int)length, context->out_file);
 			read += length;
-			stream->read_out_length = length;
+			stream->read_out_length = (psd_int)length;
 		}
 	}
 	else
 	{
-		left = stream->read_in_length - stream->read_out_length;
+		left = (psd_int)(stream->read_in_length - stream->read_out_length);
 		if(length > left)
 			length = left;
 		if(stream->autowrite)
-			psd_fwrite(stream->buffer + stream->read_out_length, length, context->out_file);
-		stream->read_out_length += length;
+			psd_fwrite(stream->buffer + stream->read_out_length, (psd_int)length, context->out_file);
+		stream->read_out_length += (psd_int)length;
 		read += length;
 	}
 
@@ -312,34 +315,51 @@ void psd_stream_free(psd_context * context)
 		context->stream = NULL;
 	}
 
-	if (context->file != NULL)
+	if (context->file >= 0)
 	{
 		psd_fclose(context->file);
-		context->file = NULL;
+		context->file = -1;
 	}
-	if (context->out_file != NULL)
+	if (context->out_file >= 0)
 	{
 		psd_fclose(context->out_file);
-		context->out_file = NULL;
+		context->out_file = -1;
 	}
 
 }
 
-size_t psd_stream_write_int(psd_context * context, psd_int value)
+psd_int psd_stream_write_int(psd_context * context, psd_int value)
 {
 	psd_uchar str[4];
 	str[0] = (value >> 24) & 0xFF;
 	str[1] = (value >> 16) & 0xFF;
-	str[2] = (value >> 8) & 0xFF;
-	str[3] = (value ) & 0xFF;
+	str[2] = (value >> 8)  & 0xFF;
+	str[3] = (value)       & 0xFF;
 	
-	size_t size = psd_fwrite(str, 4, context->out_file);
+	psd_int size = (psd_int)psd_fwrite(str, 4, context->out_file);
 	return size;
 }
 
-size_t psd_stream_write_null(psd_context * context, size_t count)
+psd_int psd_stream_write_long(psd_context * context, psd_long value)
 {
-	size_t result = 0;
+	psd_uchar str[8];
+	str[0] = (value >> 56) & 0xFF;
+	str[1] = (value >> 48) & 0xFF;
+	str[2] = (value >> 40) & 0xFF;
+	str[3] = (value >> 32) & 0xFF;
+	str[4] = (value >> 24) & 0xFF;
+	str[5] = (value >> 16) & 0xFF;
+	str[6] = (value >> 8)  & 0xFF;
+	str[7] = (value)       & 0xFF;
+	
+	psd_int size = (psd_int)psd_fwrite(str, 8, context->out_file);
+	return size;
+}
+
+
+psd_long psd_stream_write_null(psd_context * context, psd_long count)
+{
+	psd_long result = 0;
 	psd_uchar zero = 0;
 	while (count--)
 	{
@@ -348,9 +368,9 @@ size_t psd_stream_write_null(psd_context * context, size_t count)
 	return result;
 }
 
-psd_status _psd_stream_write_new_size(psd_context * context, psd_int old_length, psd_char rounding, psd_long write_pos, psd_long data_start_pos, psd_bool is_long)
+psd_status _psd_stream_write_new_size(psd_context * context, psd_long old_length, psd_char rounding, psd_long write_pos, psd_long data_start_pos, psd_bool is_long)
 {
-	long cur_pos = psd_ftell(context->out_file);
+	psd_long cur_pos = psd_ftell(context->out_file);
 	psd_long length = cur_pos - data_start_pos;
 	psd_long rounded_length = length;
 
@@ -364,26 +384,28 @@ psd_status _psd_stream_write_new_size(psd_context * context, psd_int old_length,
 
 	if (length != old_length)
 	{
-		if (psd_fseek_set(context->out_file, write_pos) != 0)
+		if (psd_fseek_set(context->out_file, write_pos) != write_pos)
 			return psd_status_out_file_error;
 
 		if (is_long)
 		{
-			if (psd_stream_write_int(context, 0) != 4)
+			if (psd_stream_write_long(context, length) != 8)
+				return psd_status_out_file_error;
+		}
+		else
+		{
+			if (psd_stream_write_int(context, (psd_int)length) != 4)
 				return psd_status_out_file_error;
 		}
 
-		if (psd_stream_write_int(context, (psd_int)length) != 4)
-			return psd_status_out_file_error;
-
-		if (psd_fseek_end(context->out_file, 0) != 0)
+		if (psd_fseek_end(context->out_file, 0) < 0)
 			return psd_status_out_file_error;
 	}
 
 	if (length != rounded_length)
 	{
 		psd_long count = rounded_length - length;
-		if (psd_stream_write_null(context, (size_t)count) != count)
+		if (psd_stream_write_null(context, count) != count)
 			return psd_status_out_file_error;
 	}
 
@@ -396,7 +418,7 @@ psd_status psd_stream_write_new_size_int(psd_context * context, psd_int old_leng
 }
 
 
-psd_status psd_stream_write_new_size_long(psd_context * context, psd_int old_length, psd_char rounding, psd_long write_pos, psd_long data_start_pos)
+psd_status psd_stream_write_new_size_long(psd_context * context, psd_long old_length, psd_char rounding, psd_long write_pos, psd_long data_start_pos)
 {
 	return _psd_stream_write_new_size(context, old_length, rounding, write_pos, data_start_pos, psd_true);
 }

@@ -23,8 +23,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include <stdio.h>
+#include <sys/stat.h>
 #include <stdlib.h>
+#include <io.h>
+#include <fcntl.h>
 #include "psd.h"
 #include "psd_system.h"
 
@@ -51,72 +53,63 @@ void psd_freeif(void * block)
 		psd_free(block);
 }
 
-void * psd_fopen(const psd_char * file_name)
+psd_int psd_fopen(const psd_char * file_name)
 {
-	FILE *d = fopen(file_name, "rb");
-	return (void *)d;
+	int f = _open(file_name, _O_RDONLY | O_BINARY);
+	return f;
 }
 
-void * psd_fopenw(const psd_char * file_name)
+psd_int psd_fopenw(const psd_char * file_name)
 {
-	FILE *d = fopen(file_name, "wb");
-	return (void *)d;
+	psd_int f = _open(file_name, _O_RDWR | _O_CREAT | O_BINARY);
+	return f;
 }
 
-long psd_fsize(void * file)
+psd_long psd_fsize(psd_int file)
 {
-	long offset, size;
+	struct _stat64 st = {0};
+	if (_fstat64(file, &st) == 0)
+		return st.st_size;
 
-	offset = ftell((FILE *)file);
-	fseek((FILE *)file, 0, SEEK_END);
-	size = ftell(file);
-	fseek((FILE *)file, 0, SEEK_SET);
-	fseek((FILE *)file, offset, SEEK_CUR);
-
-	return size;
+	return -1;
 }
 
-size_t psd_fread(psd_uchar * buffer, psd_int count, void * file)
+psd_int psd_fread(psd_uchar * buffer, psd_int count, psd_int file)
 {
-	size_t result = fread(buffer, 1, count, (FILE *)file);
+	psd_int result = _read(file, buffer, count);
 	return result;
 }
 
-psd_int _psd_fseek(void * file, psd_long length, psd_int origin)
+psd_long _psd_fseek(psd_int file, psd_long length, psd_int origin)
 {
-	return fseek((FILE *)file, (long)length, origin);
+	psd_long result = _lseeki64(file, length, origin);
+	return result;
 }
 
-psd_int psd_fseek_cur(void * file, psd_long length)
+psd_long psd_fseek_set(psd_int file, psd_long length)
 {
-	return _psd_fseek(file, (long)length, SEEK_CUR);
+	return _psd_fseek(file, length, 0);
 }
 
-psd_int psd_fseek_set(void * file, psd_long length)
+psd_long psd_fseek_end(psd_int file, psd_long length)
 {
-	return _psd_fseek(file, (long)length, SEEK_SET);
+	return _psd_fseek(file, length, 2);
 }
 
-psd_int psd_fseek_end(void * file, psd_long length)
+psd_long psd_ftell(psd_int file)
 {
-	return _psd_fseek(file, (long)length, SEEK_END);
+	psd_long result = _telli64(file);
+	return result;
 }
 
-
-long psd_ftell(void * file)
+psd_int psd_fwrite(psd_uchar * buffer, psd_int count, psd_int file)
 {
-	long offset = ftell((FILE *)file);
-	
-	return offset;
+	psd_int result = _write(file, buffer, count);
+	return result;
 }
 
-size_t psd_fwrite(psd_uchar * buffer, size_t count, void * file)
+void psd_fclose(psd_int file)
 {
-	return fwrite(buffer, 1, count, (FILE *)file);
-}
-
-void psd_fclose(void * file)
-{
-	fclose((FILE *)file);
+	_close(file);
 }
 

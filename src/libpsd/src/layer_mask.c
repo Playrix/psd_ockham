@@ -32,13 +32,13 @@ extern void psd_linked_layer_free(psd_context * context);
 // shows the high-level organization of the layer information.
 static psd_status psd_get_layer_info(psd_context * context)
 {
-	psd_int length;
+	psd_long length;
 
 	// Length of the layers info section. (**PSB** length is 8 bytes.)
 	if (context->version == 1)
 		length = psd_stream_get_int(context);
 	else
-		length = (psd_int)psd_stream_get_long(context);
+		length = psd_stream_get_long(context);
 	
 	if (psd_stream_get_null(context, length) != length)
 		return psd_status_layer_info_error;
@@ -62,16 +62,16 @@ static psd_status psd_get_mask_info(psd_context * context)
 // This section of the document describes the formats of layer and mask records.
 psd_status psd_get_layer_and_mask(psd_context * context)
 {
-	psd_int length, prev_stream_pos, extra_stream_pos, size, full_size, remain_length;
+	psd_long prev_stream_pos, extra_stream_pos, length, size, full_size, remain_length;
 	psd_status status;
 	psd_uint tag;
 
 	// Length of the layer and mask information section. (**PSB** length is 8 bytes.)
-	long length_pos = psd_ftell(context->out_file);
+	psd_long length_pos = psd_ftell(context->out_file);
 	if (context->version == 1)
 		length = psd_stream_get_int(context);
 	else
-		length = (psd_int)psd_stream_get_long(context);
+		length = psd_stream_get_long(context);
 	if(length <= 0)
 		return psd_status_done;
 	
@@ -94,7 +94,7 @@ psd_status psd_get_layer_and_mask(psd_context * context)
 		{
 			tag = psd_stream_get_int(context);
 
-			long size_pos = psd_ftell(context->out_file);
+			psd_long size_pos = psd_ftell(context->out_file);
 
 			if (context->version == 2)
 			{
@@ -119,7 +119,7 @@ psd_status psd_get_layer_and_mask(psd_context * context)
 					case 'FELS':
 					case 'extd':
 					case 'extn':
-						full_size = (psd_int)psd_stream_get_long(context);
+						full_size = psd_stream_get_long(context);
 						break;
 					default:
 						full_size = psd_stream_get_int(context);
@@ -149,9 +149,12 @@ psd_status psd_get_layer_and_mask(psd_context * context)
 					}
 
 					if (context->version == 1 || tag != 'lnk2')
-						psd_stream_write_new_size_int(context, full_size, 4, size_pos, size_pos+4);
+						status = psd_stream_write_new_size_int(context, (psd_int)full_size, 4, size_pos, size_pos+4);
 					else
-						psd_stream_write_new_size_long(context, full_size, 4, size_pos, size_pos+8);
+						status = psd_stream_write_new_size_long(context, full_size, 4, size_pos, size_pos+8);
+
+					if (status != psd_status_done)
+						return status;
 					
 					context->stream->autowrite = psd_false;
 					psd_stream_get_null(context, size);
@@ -174,9 +177,9 @@ psd_status psd_get_layer_and_mask(psd_context * context)
 	}
 
 	if (context->version == 1)
-		psd_stream_write_new_size_int(context, length, 0, length_pos, length_pos+4);
+		status = psd_stream_write_new_size_int(context, (psd_int)length, 0, length_pos, length_pos+4);
 	else
-		psd_stream_write_new_size_long(context, length, 0, length_pos, length_pos+8);
+		status = psd_stream_write_new_size_long(context, length, 0, length_pos, length_pos+8);
 	
 	// Filler: zeros
 	context->stream->autowrite = psd_false;

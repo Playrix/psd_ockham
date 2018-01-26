@@ -30,7 +30,7 @@
 
 psd_int psd_stream_get(psd_context * context, psd_uchar * buffer, psd_int length);
 psd_int psd_stream_get_w_null(psd_context * context, psd_int length);
-psd_int psd_stream_get_null(psd_context * context, psd_int length);
+psd_long psd_stream_get_null(psd_context * context, psd_long length);
 psd_bool psd_stream_get_bool(psd_context * context);
 psd_uchar psd_stream_get_char(psd_context * context);
 psd_short psd_stream_get_short(psd_context * context);
@@ -40,10 +40,11 @@ psd_float psd_stream_get_float(psd_context * context);
 psd_double psd_stream_get_double(psd_context * context);
 void psd_stream_free(psd_context * context);
 
-size_t psd_stream_write_int(psd_context * context, psd_int value);
-size_t psd_stream_write_null(psd_context * context, size_t count);
+psd_int psd_stream_write_int(psd_context * context, psd_int value);
+psd_int psd_stream_write_long(psd_context * context, psd_long value);
+psd_long psd_stream_write_null(psd_context * context, psd_long count);
 
 psd_status psd_stream_write_new_size_int(psd_context * context, psd_int old_length, psd_char rounding, psd_long write_pos, psd_long data_start_pos);
-psd_status psd_stream_write_new_size_long(psd_context * context, psd_int old_length, psd_char rounding, psd_long write_pos, psd_long data_start_pos);
+psd_status psd_stream_write_new_size_long(psd_context * context, psd_long old_length, psd_char rounding, psd_long write_pos, psd_long data_start_pos);
 
 #endif

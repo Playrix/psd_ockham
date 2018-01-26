@@ -22,32 +22,21 @@
 #ifndef __PSD_SYSTEM_H__
 #define __PSD_SYSTEM_H__
 
-#include <assert.h>
-#include <string.h>
 #include "types.h"
-
-#if 1
-#define psd_assert(x)			assert(x)
-#else
-#define psd_assert(x)			do {} while(0)
-// or
-// #define psd_assert(x)		return psd_status_unkown_error
-#endif
-
 
 void * psd_malloc(psd_int size);
 void * psd_realloc(void * block, psd_int size);
 void psd_free(void * block);
 void psd_freeif(void * block);
-void * psd_fopen(const psd_char * file_name);
-void * psd_fopenw(const psd_char * file_name);
-long psd_fsize(void * file);
-size_t psd_fread(psd_uchar * buffer, psd_int count, void * file);
-size_t psd_fwrite(psd_uchar * buffer, size_t count, void * file);
-psd_int psd_fseek_cur(void * file, psd_long length);
-psd_int psd_fseek_set(void * file, psd_long length);
-psd_int psd_fseek_end(void * file, psd_long length);
-long psd_ftell(void * file);
-void psd_fclose(void * file);
+
+psd_int psd_fopen(const psd_char * file_name);
+psd_int psd_fopenw(const psd_char * file_name);
+psd_long psd_fsize(psd_int file);
+psd_int psd_fread(psd_uchar * buffer, psd_int count, psd_int file);
+psd_int psd_fwrite(psd_uchar * buffer, psd_int count, psd_int file);
+psd_long psd_fseek_set(psd_int file, psd_long length);
+psd_long psd_fseek_end(psd_int file, psd_long length);
+psd_long psd_ftell(psd_int file);
+void psd_fclose(psd_int file);
 
 #endif
