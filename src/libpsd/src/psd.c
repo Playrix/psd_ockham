@@ -32,6 +32,7 @@
 #include <stdio.h>
 
 static const char* const FNAME_POSTFIX = "_cut";
+static const char* const TMPNAME_EXT = ".tmp";
 static const int EXT_LENGTH = 4;
 
 enum {
@@ -56,24 +57,13 @@ psd_result psd_process_file(const char * file_name, const char * out_file_name)
 	result.status = psd_status_done;
 	result.out_file = NULL;
 
-	char* tmp_file = tmpnam(0);
-
-	result.status = psd_image_load(file_name, tmp_file);
-
-	if (result.status != psd_status_done)
-	{
-		size_t out_file_name_len = strlen(tmp_file) + 1;
-		result.out_file = (char *)malloc(out_file_name_len);
-		strcpy(result.out_file, tmp_file);
-		return result;
-	}
-
+	size_t out_file_name_len = 0;
 	if (out_file_name == NULL)
 	{
 		size_t file_name_len = strlen(file_name);
 		char* dot_pos = strrchr(file_name, '.');
 
-		size_t out_file_name_len = file_name_len + strlen(FNAME_POSTFIX) + 1;
+		out_file_name_len = file_name_len + strlen(FNAME_POSTFIX) + 1;
 		result.out_file = (char *)malloc(out_file_name_len);
 
 		if (dot_pos != NULL && dot_pos + EXT_LENGTH >= file_name + file_name_len)
@@ -92,19 +82,28 @@ psd_result psd_process_file(const char * file_name, const char * out_file_name)
 	}
 	else
 	{
-		size_t out_file_name_len = strlen(out_file_name) + 1;
+		out_file_name_len = strlen(out_file_name) + 1;
 		result.out_file = (char *)malloc(out_file_name_len);
 		strcpy(result.out_file, out_file_name);
 	}
 
-	remove(result.out_file);
+	char* tmp_file_name = (char *)malloc(out_file_name_len);
+	strcpy(tmp_file_name, result.out_file);
+	strcpy(tmp_file_name + out_file_name_len - strlen(TMPNAME_EXT) - 1, TMPNAME_EXT);
 
-	if (rename(tmp_file, result.out_file) != 0)
+	result.status = psd_image_load(file_name, tmp_file_name);
+
+	if (result.status == psd_status_done)
 	{
-		result.status = psd_status_invalid_out_file;
+		remove(result.out_file);
+		if (rename(tmp_file_name, result.out_file) != 0)
+		{
+			result.status = psd_status_invalid_out_file;
+		}
 	}
 
-	remove(tmp_file);
+	remove(tmp_file_name);
+	psd_free(tmp_file_name);
 	return result;
 }
 
