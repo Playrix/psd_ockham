@@ -33,6 +33,10 @@ include_directories(
 	"src/libpsd/include"
 )
 
+if (__APPLE__)
+	add_defenition(-D__APPLE__)
+endif()
+
 #Target
 add_executable(${TARGET_NAME} ${PROJECT_SOURCES})
 

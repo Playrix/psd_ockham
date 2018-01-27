@@ -25,7 +25,25 @@
 
 #include <sys/stat.h>
 #include <stdlib.h>
+
+#if defined(__APPLE__)
+#include <unistd.h>
+#include <sys/uio.h>
+#define fstat64 fstat
+#define stat64 stat
+#define lseeki64 lseek
+#elif defined(_MSC_VER)
 #include <io.h>
+#define open _open
+#define read _read
+#define close _close
+#define write _write
+#define stat64 _stat64
+#define lseeki64 _lseeki64
+#define fstat64 _fstat64
+#endif
+
+#include <sys/types.h>
 #include <fcntl.h>
 #include "psd.h"
 #include "psd_system.h"
@@ -55,20 +73,28 @@ void psd_freeif(void * block)
 
 psd_int psd_fopen(const psd_char * file_name)
 {
-	int f = _open(file_name, _O_RDONLY | O_BINARY);
+	psd_int flags = O_RDONLY;
+#if !defined(__APPLE__)
+	flags |= O_BINARY;
+#endif
+	psd_int f = open(file_name, flags);
 	return f;
 }
 
 psd_int psd_fopenw(const psd_char * file_name)
 {
-	psd_int f = _open(file_name, _O_RDWR | _O_CREAT | O_BINARY);
+	psd_int flags = O_RDWR | O_CREAT;
+#if !defined(__APPLE__)
+	flags |= O_BINARY;
+#endif
+	psd_int f = open(file_name, flags);
 	return f;
 }
 
 psd_long psd_fsize(psd_int file)
 {
-	struct _stat64 st = {0};
-	if (_fstat64(file, &st) == 0)
+	struct stat64 st = {0};
+	if (fstat64(file, &st) == 0)
 		return st.st_size;
 
 	return -1;
@@ -76,13 +102,13 @@ psd_long psd_fsize(psd_int file)
 
 psd_int psd_fread(psd_uchar * buffer, psd_int count, psd_int file)
 {
-	psd_int result = _read(file, buffer, count);
+	psd_int result = read(file, buffer, count);
 	return result;
 }
 
 psd_long _psd_fseek(psd_int file, psd_long length, psd_int origin)
 {
-	psd_long result = _lseeki64(file, length, origin);
+	psd_long result = lseeki64(file, length, origin);
 	return result;
 }
 
@@ -98,18 +124,18 @@ psd_long psd_fseek_end(psd_int file, psd_long length)
 
 psd_long psd_ftell(psd_int file)
 {
-	psd_long result = _telli64(file);
+	psd_long result = _psd_fseek(file, 0, 1);
 	return result;
 }
 
 psd_int psd_fwrite(psd_uchar * buffer, psd_int count, psd_int file)
 {
-	psd_int result = _write(file, buffer, count);
+	psd_int result = write(file, buffer, count);
 	return result;
 }
 
 void psd_fclose(psd_int file)
 {
-	_close(file);
+	close(file);
 }
 
