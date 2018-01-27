@@ -1,6 +1,6 @@
 /**
  * psd_ockham - Photoshop file size reducing utility
- * Copyright (C) 2017 Playrix.
+ * Copyright (C) 2017-2018 Playrix.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
