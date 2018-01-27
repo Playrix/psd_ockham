@@ -87,7 +87,7 @@ psd_int psd_fopenw(const psd_char * file_name)
 #if !defined(__APPLE__)
 	flags |= O_BINARY;
 #endif
-	psd_int f = open(file_name, flags);
+	psd_int f = open(file_name, flags, 0666);
 	return f;
 }
 
