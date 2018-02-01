@@ -41,6 +41,13 @@
 #define stat64 _stat64
 #define lseeki64 _lseeki64
 #define fstat64 _fstat64
+#else // Unux
+#define _LARGEFILE64_SOURCE
+#include <sys/io.h>
+#include <unistd.h>
+#define stat64 stat
+#define lseeki64 lseek
+#define fstat64 fstat
 #endif
 
 #include <sys/types.h>
@@ -74,7 +81,7 @@ void psd_freeif(void * block)
 psd_int psd_fopen(const psd_char * file_name)
 {
 	psd_int flags = O_RDONLY;
-#if !defined(__APPLE__)
+#if defined(_MSC_VER)
 	flags |= O_BINARY;
 #endif
 	psd_int f = open(file_name, flags);
@@ -84,7 +91,7 @@ psd_int psd_fopen(const psd_char * file_name)
 psd_int psd_fopenw(const psd_char * file_name)
 {
 	psd_int flags = O_RDWR | O_CREAT;
-#if !defined(__APPLE__)
+#if defined(_MSC_VER)
 	flags |= O_BINARY;
 #endif
 	psd_int f = open(file_name, flags, 0666);
