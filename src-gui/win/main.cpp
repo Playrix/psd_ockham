@@ -155,7 +155,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		NULL,
 		WS_CHILD | WS_VISIBLE | ES_MULTILINE | WS_VSCROLL | ES_READONLY,
 		0, 0, 0, 0,
-		hWnd, (HMENU)ID_LOG_TEXT, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		hWnd, (HMENU)ID_LOG_TEXT, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
 	SendMessage(hLogText, WM_SETFONT, (WPARAM)defaultFont, NULL);
 	SetLogDefault();
 	AddToLogFromId(LogStatus::None, IDS_LOG_DEFAULT);
@@ -165,7 +165,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		NULL,
 		WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
 		0, 0, 0, 0,
-		hWnd, (HMENU)ID_CANCEL_BUTTON, (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		hWnd, (HMENU)ID_CANCEL_BUTTON, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL);
 	SendMessage(hCancelButton, WM_SETFONT, (WPARAM)defaultFont, NULL);
 	EnableWindow(hCancelButton, FALSE);
 	LoadString(hInstance, IDS_CANCEL, buffer, MAX_LOADSTRING);
