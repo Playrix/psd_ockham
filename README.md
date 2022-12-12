@@ -30,7 +30,7 @@ Version with graphical user interface is provided for Windows only. It is simple
 
 ## Copyright
 
-Copyright © 2017-2018 Playrix.
+Copyright © 2017-2023 Playrix.
 
 psd_ockham is based on [libpsd](https://sourceforge.net/projects/libpsd/)
 

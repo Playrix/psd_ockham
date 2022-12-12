@@ -19,6 +19,6 @@
 #ifndef __LIB_PSD_OCKHAM_VERSION_H__
 #define __LIB_PSD_OCKHAM_VERSION_H__
 
-const char* const PSD_OCKHAM_VERSION = "1.12";
+const char* const PSD_OCKHAM_VERSION = "1.13";
 
 #endif //ifndef __LIB_PSD_OCKHAM_VERSION_H__
